@@ -43,6 +43,12 @@ namespace pcl
 		return err;
 	}
 
+
+	const char* PixInsightCanonDSLRCameraDriver::getImageFileName()
+	{
+		return fileName;
+	}
+
 	EdsError PixInsightCanonDSLRCameraDriver::getFirstCamera(EdsCameraRef *camera)
 	{
 		EdsError err = EDS_ERR_OK;
@@ -73,17 +79,34 @@ namespace pcl
 		return err;
 	}
 
-	EdsError PixInsightCanonDSLRCameraDriver::downloadImage(EdsDirectoryItemRef directoryItem,EdsStreamRef stream)
+	EdsError PixInsightCanonDSLRCameraDriver::downloadImage(EdsDirectoryItemRef directoryItem,const EdsChar* filePath)
 	{
 		EdsError err = EDS_ERR_OK;
 		// Get directory item information
 		EdsDirectoryItemInfo dirItemInfo;
 		err = EdsGetDirectoryItemInfo(directoryItem, & dirItemInfo);
+
+		//memcpy(fileName,dirItemInfo.szFileName,256);
+
+		EdsStreamRef stream;
+		err = EdsCreateFileStream(filePath,kEdsFileCreateDisposition_CreateAlways,kEdsAccess_ReadWrite,&stream);
 		
 		// Download image
 		if(err == EDS_ERR_OK)
 		{
-			err = EdsDownload( directoryItem, dirItemInfo.size, stream);
+
+			int blockSize = 1024 * 1024; // 1MB at a time
+			int remainingBytes = dirItemInfo.size;
+			do {
+				if (remainingBytes < blockSize) {
+					blockSize = (int)(remainingBytes / 512) * 512;
+				}
+				remainingBytes -= blockSize;
+				err = EdsDownload( directoryItem, blockSize, stream);
+			} while (remainingBytes > 512);
+			// now we need to download the final block
+			err = EdsDownload( directoryItem, remainingBytes, stream);
+			
 		}
 		// Issue notification that download is complete
 		if(err == EDS_ERR_OK)
@@ -91,6 +114,14 @@ namespace pcl
 			err = EdsDownloadComplete(directoryItem);
 		}
 		
+		// Release stream
+		if( stream != NULL)
+		{
+			EdsRelease(stream);
+			stream = NULL;
+		}
+
+
 		return err;
 	}
 
@@ -333,7 +364,29 @@ namespace pcl
 
 	//Application needs to own this memory...
 	//This may need to be a pointer instead...
-	void PixInsightCanonDSLRCameraDriver::ImageArray(UInt8Image *theImage)
+
+	void PixInsightCanonDSLRCameraDriver::downloadImageFromCamera(const EdsChar*  filePath)
+	{
+		
+		EdsError err = EDS_ERR_OK;
+
+		
+
+		err = downloadImage(theImageRef,filePath);
+
+		/*EdsImageRef imageRef;
+		err = EdsCreateImageRef( stream,&imageRef );
+
+		EdsImageInfo imageInfo;
+		err = EdsGetImageInfo(imageRef, kEdsImageSrc_FullView,&imageInfo );*/
+
+		
+
+		
+	}
+
+
+	void PixInsightCanonDSLRCameraDriver::ImageArray(UInt16Image *theImage)
 	{
 
 		
@@ -342,7 +395,7 @@ namespace pcl
 		EdsCreateMemoryStreamFromPointer(**theImage,theImage->ImageSize(),&stream);
 
 		
-		err = downloadImage(theImageRef,stream);
+		//err = downloadImage(theImageRef,stream);
 
 		EdsImageRef imageRef;
 		err = EdsCreateImageRef( stream,&imageRef );

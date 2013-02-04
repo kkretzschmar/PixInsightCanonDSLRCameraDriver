@@ -38,7 +38,7 @@ namespace pcl
 	    virtual bool HasShutter();
 	    virtual double HeatSinkTemperature();
 		
-		virtual void ImageArray(UInt8Image *theImage);
+		virtual void ImageArray(UInt16Image *theImage);
 	    //virtual Array< Array<long> > ImageArrayVariant();
 	    virtual bool ImageReady();
 	    virtual bool IsPulseGuiding();
@@ -66,6 +66,10 @@ namespace pcl
         virtual void StartExposure(double);
         virtual void StopExposure();
 		virtual double GetSetCCDTemperature();
+
+		virtual void downloadImageFromCamera(const char*  filePath);
+		virtual const char* getImageFileName();
+
 	private:
 		EdsCameraRef         camera;
 		EdsDirectoryItemRef  theImageRef;
@@ -73,6 +77,7 @@ namespace pcl
 		bool isSDKLoaded;
 		bool isConnected;
 		bool isImageReady;
+		EdsChar fileName [256];
 		EdsUInt32 expTime;
 
 		void (*theLogger)(String);
@@ -80,7 +85,7 @@ namespace pcl
 		int DisconnectCamera( );	
 
 		EdsError getFirstCamera(EdsCameraRef *camera);
-		EdsError downloadImage(EdsDirectoryItemRef directoryItem, EdsStreamRef stream);
+		EdsError downloadImage(EdsDirectoryItemRef directoryItem, const EdsChar* filePath);
 	};
 
 }
