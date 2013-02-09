@@ -69,8 +69,10 @@ namespace pcl
 
 		virtual void downloadImageFromCamera(const char*  filePath);
 		virtual const char* getImageFileName();
+		virtual CameraType getCameraType(){return cameraType; }
 
 	private:
+		CameraType cameraType;
 		EdsCameraRef         camera;
 		EdsDirectoryItemRef  theImageRef;
 

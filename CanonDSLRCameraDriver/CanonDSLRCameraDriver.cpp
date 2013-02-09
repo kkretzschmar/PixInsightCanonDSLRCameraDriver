@@ -7,34 +7,39 @@
 namespace pcl
 {
 
-	EdsError EDSCALLBACK handleStateEvent (EdsStateEvent event,
+	EdsError EDSCALLBACK handleBulbExposureTimeStateEvent (EdsStateEvent event,
 		EdsUInt32 parameter,
 		EdsVoid * context)
 	{
 		EdsError err = EDS_ERR_OK;
 		EdsUInt32* pI = (EdsUInt32*) context;
 		*pI=parameter;
+
+		return err;
+	}
+
+	EdsError EDSCALLBACK handleShutdownStateEvent (EdsStateEvent event,
+		EdsUInt32 parameter,
+		EdsVoid * context)
+	{
+		EdsError err = EDS_ERR_OK;
+		EdsBool* pI = (EdsBool*) context;
+		*pI=false;
+
 		return err;
 	}
 
 
-	EdsError EDSCALLBACK handleObjectEvent( EdsObjectEvent event,
+	EdsError EDSCALLBACK handleDirItemCreatedObjectEvent( EdsObjectEvent event,
 		EdsBaseRef object,
 		EdsVoid * context)
 	{
 		EdsError err = EDS_ERR_OK;
 		
 		EdsDirectoryItemRef* pdirItem=(EdsDirectoryItemRef*) context;
-		switch(event)
-		{
-		case kEdsObjectEvent_DirItemCreated:
-			*pdirItem=object;
-			object=NULL;
-			break;
-		default:
-			break;
-		}
-
+		*pdirItem=object;
+		object=NULL;
+		
 		// Object must be released
 		if(object)
 		{
@@ -127,7 +132,7 @@ namespace pcl
 
 
 
-	PixInsightCanonDSLRCameraDriver::PixInsightCanonDSLRCameraDriver():camera(NULL),theImageRef(NULL),isSDKLoaded(false),isConnected(false),expTime(0),isImageReady(false)
+	PixInsightCanonDSLRCameraDriver::PixInsightCanonDSLRCameraDriver():cameraType(TypeDSLR),camera(NULL),theImageRef(NULL),isSDKLoaded(false),isConnected(false),expTime(0),isImageReady(false)
 	{
 		EdsError err = EDS_ERR_OK;
 		if (!isSDKLoaded)
@@ -149,12 +154,16 @@ namespace pcl
 
 		// Set event handler
 		err = EdsSetCameraStateEventHandler(camera, kEdsStateEvent_BulbExposureTime,
-		handleStateEvent, (EdsVoid*) &expTime);
+		handleBulbExposureTimeStateEvent, (EdsVoid*) &expTime);
+		// err handling
+
+		err = EdsSetCameraStateEventHandler(camera, kEdsStateEvent_Shutdown,
+		handleShutdownStateEvent, (EdsBool*) &isConnected);
 		// err handling
 
 		//Set event handler
-		err = EdsSetObjectEventHandler(camera, kEdsObjectEvent_All,
-		handleObjectEvent, (EdsVoid*) &theImageRef);
+		err = EdsSetObjectEventHandler(camera, kEdsObjectEvent_DirItemCreated,
+		handleDirItemCreatedObjectEvent, (EdsVoid*) &theImageRef);
 		// err handling
 		
 	}
@@ -278,6 +287,10 @@ namespace pcl
 		{
 			isConnected=true;
 			return 1;
+		}else if (err == EDS_ERR_INVALID_HANDLE)
+		{
+			err = getFirstCamera(&camera);
+			return err;
 		}
 		return -1;
 	}
@@ -544,8 +557,8 @@ namespace pcl
 		{
 			err = EdsSendStatusCommand (camera, kEdsCameraStatusCommand_UIUnLock, 0);
 		}
-		
-		while (expTime<duration){
+		expTime=0;
+		while (expTime<=duration){
 		}
 		isImageReady=true;
 		StopExposure(); 
