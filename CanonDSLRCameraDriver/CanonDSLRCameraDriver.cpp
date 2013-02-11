@@ -378,7 +378,7 @@ namespace pcl
 	//Application needs to own this memory...
 	//This may need to be a pointer instead...
 
-	void PixInsightCanonDSLRCameraDriver::downloadImageFromCamera(const EdsChar*  filePath)
+	bool PixInsightCanonDSLRCameraDriver::downloadImageFromCamera(const EdsChar*  filePath)
 	{
 		
 		EdsError err = EDS_ERR_OK;
@@ -386,6 +386,12 @@ namespace pcl
 		
 
 		err = downloadImage(theImageRef,filePath);
+
+		if (err)
+			return false;
+
+		return true;
+
 
 		/*EdsImageRef imageRef;
 		err = EdsCreateImageRef( stream,&imageRef );
@@ -440,10 +446,7 @@ namespace pcl
 	{
 		return String("");
 	}
-	double PixInsightCanonDSLRCameraDriver::LastExposureDuration()
-	{
-		return 1;
-	}
+	
 	// Reports the actual exposure start in the FITS-standard CCYY-MM-DDThh:mm:ss[.sss...] format.
 	String PixInsightCanonDSLRCameraDriver::LastExposureStartTime()
 	{	

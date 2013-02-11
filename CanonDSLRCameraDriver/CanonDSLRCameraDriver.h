@@ -43,7 +43,7 @@ namespace pcl
 	    virtual bool ImageReady();
 	    virtual bool IsPulseGuiding();
 	    virtual String LastError();
-	    virtual double LastExposureDuration();
+		virtual double LastExposureDuration(){return expTime;}
 	    // Reports the actual exposure start in the FITS-standard CCYY-MM-DDThh:mm:ss[.sss...] format.
 	    virtual String LastExposureStartTime();
 	    virtual long MaxADU();
@@ -67,8 +67,9 @@ namespace pcl
         virtual void StopExposure();
 		virtual double GetSetCCDTemperature();
 
-		virtual void downloadImageFromCamera(const char*  filePath);
+		virtual bool downloadImageFromCamera(const char*  filePath);
 		virtual const char* getImageFileName();
+		//virtual const char* getImageFileFormatExtension();
 		virtual CameraType getCameraType(){return cameraType; }
 
 	private:
@@ -80,6 +81,7 @@ namespace pcl
 		bool isConnected;
 		bool isImageReady;
 		EdsChar fileName [256];
+		//EdsChar fileFormatExtension [256];
 		EdsUInt32 expTime;
 
 		void (*theLogger)(String);
