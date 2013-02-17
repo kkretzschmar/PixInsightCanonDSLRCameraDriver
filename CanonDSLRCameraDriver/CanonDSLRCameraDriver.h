@@ -84,6 +84,8 @@ namespace pcl
 		//EdsChar fileFormatExtension [256];
 		EdsUInt32 expTime;
 
+		EdsError lastError;
+
 		void (*theLogger)(String);
 		int ConnectCamera( );
 		int DisconnectCamera( );	

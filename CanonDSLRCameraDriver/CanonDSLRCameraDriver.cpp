@@ -132,7 +132,7 @@ namespace pcl
 
 
 
-	PixInsightCanonDSLRCameraDriver::PixInsightCanonDSLRCameraDriver():cameraType(TypeDSLR),camera(NULL),theImageRef(NULL),isSDKLoaded(false),isConnected(false),expTime(0),isImageReady(false)
+	PixInsightCanonDSLRCameraDriver::PixInsightCanonDSLRCameraDriver():cameraType(TypeDSLR),camera(NULL),theImageRef(NULL),isSDKLoaded(false),isConnected(false),expTime(0),isImageReady(false),lastError(EDS_ERR_OK)
 	{
 		EdsError err = EDS_ERR_OK;
 		if (!isSDKLoaded)
@@ -216,7 +216,10 @@ namespace pcl
 
 	IPixInsightCamera::CameraStateEnum PixInsightCanonDSLRCameraDriver::CameraState()
 	{
-		return CameraError;
+		if (lastError!=EDS_ERR_OK)
+			return CameraError;
+
+		return CameraIdle;
 	}
 
 	long PixInsightCanonDSLRCameraDriver::CameraXSize()
@@ -286,11 +289,12 @@ namespace pcl
 		if(err == EDS_ERR_OK)
 		{
 			isConnected=true;
+			lastError=err;
 			return 1;
 		}else if (err == EDS_ERR_INVALID_HANDLE)
 		{
-			err = getFirstCamera(&camera);
-			return err;
+			lastError = getFirstCamera(&camera);
+			return lastError;
 		}
 		return -1;
 	}
@@ -308,8 +312,10 @@ namespace pcl
 		if(err == EDS_ERR_OK)
 		{
 			isConnected=false;
+			lastError=err;
 			return 1;
 		}
+		lastError=err;
 		return -1;
 		//return theCameraPtr2.SetProperty( "Connected", false );
 		return -1;
@@ -383,8 +389,6 @@ namespace pcl
 		
 		EdsError err = EDS_ERR_OK;
 
-		
-
 		err = downloadImage(theImageRef,filePath);
 
 		if (err)
@@ -444,7 +448,8 @@ namespace pcl
 
 	String PixInsightCanonDSLRCameraDriver::LastError()
 	{
-		return String("");
+		String errString = String().Format("EDSK ERROR CODE: %i",lastError);
+		return errString;
 	}
 	
 	// Reports the actual exposure start in the FITS-standard CCYY-MM-DDThh:mm:ss[.sss...] format.
@@ -548,31 +553,34 @@ namespace pcl
 		bool locked = false;
 		
 		err = EdsSendStatusCommand( camera, kEdsCameraStatusCommand_UILock, 0);
-		if(err == EDS_ERR_OK)
-		{
+		
+		if(err == EDS_ERR_OK){
 			locked = true;
-		}
-		if(err == EDS_ERR_OK)
-		{
 			err = EdsSendCommand( camera, kEdsCameraCommand_BulbStart, 0);
 		}
+
+		if (err==EDS_ERR_OK || err==44313){
+			expTime=0;
+			while (expTime<=duration){
+			}
+			isImageReady=true;
+			StopExposure(); 
+			err=EDS_ERR_OK;
+		}
+		lastError=err;
+
 		if(err != EDS_ERR_OK && locked)
 		{
-			err = EdsSendStatusCommand (camera, kEdsCameraStatusCommand_UIUnLock, 0);
+			EdsSendStatusCommand (camera, kEdsCameraStatusCommand_UIUnLock, 0);
 		}
-		expTime=0;
-		while (expTime<=duration){
-		}
-		isImageReady=true;
-		StopExposure(); 
 	}
 
 	void PixInsightCanonDSLRCameraDriver::StopExposure()
 	{
 		EdsError err;
 		err = EdsSendCommand( camera ,kEdsCameraCommand_BulbEnd, 0);
-		EdsSendStatusCommand(camera, kEdsCameraStatusCommand_UIUnLock, 0);
-		
+		EdsSendStatusCommand (camera, kEdsCameraStatusCommand_UIUnLock, 0);
+		lastError=err;
 
 	}
 
