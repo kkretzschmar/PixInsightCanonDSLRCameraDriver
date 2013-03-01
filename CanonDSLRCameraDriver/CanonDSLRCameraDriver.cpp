@@ -4,6 +4,13 @@
 #include "stdafx.h"
 #include "CanonDSLRCameraDriver.h"
 
+#define RETURN_WITH_ERROR(ERRCODE,RETURNCODE)\
+	if (ERRCODE!=EDS_ERR_OK) {\
+	  lastError=ERRCODE;\
+      return RETURNCODE;\
+	}
+
+
 namespace pcl
 {
 
@@ -148,23 +155,7 @@ namespace pcl
 		//for threads
 		CoInitializeEx( NULL, COINIT_APARTMENTTHREADED );
 
-		//get first camera
-		err = getFirstCamera(&camera);
-		// err handling
-
-		// Set event handler
-		err = EdsSetCameraStateEventHandler(camera, kEdsStateEvent_BulbExposureTime,
-		handleBulbExposureTimeStateEvent, (EdsVoid*) &expTime);
-		// err handling
-
-		err = EdsSetCameraStateEventHandler(camera, kEdsStateEvent_Shutdown,
-		handleShutdownStateEvent, (EdsBool*) &isConnected);
-		// err handling
-
-		//Set event handler
-		err = EdsSetObjectEventHandler(camera, kEdsObjectEvent_DirItemCreated,
-		handleDirItemCreatedObjectEvent, (EdsVoid*) &theImageRef);
-		// err handling
+		
 		
 	}
 
@@ -280,23 +271,39 @@ namespace pcl
 
 	int PixInsightCanonDSLRCameraDriver::ConnectCamera(  )
 	{
+		EdsError err = EDS_ERR_OK;
+
 		if (!isSDKLoaded)
 			return -1;
 
+		//get first camera
+		err = getFirstCamera(&camera);
+		RETURN_WITH_ERROR(err,-1);
+			
+
+		// Set event handler
+		err = EdsSetCameraStateEventHandler(camera, kEdsStateEvent_BulbExposureTime,
+		handleBulbExposureTimeStateEvent, (EdsVoid*) &expTime);
+		RETURN_WITH_ERROR(err,-1);
+
+		err = EdsSetCameraStateEventHandler(camera, kEdsStateEvent_Shutdown,
+		handleShutdownStateEvent, (EdsBool*) &isConnected);
+		RETURN_WITH_ERROR(err,-1);
+
+		//Set event handler
+		err = EdsSetObjectEventHandler(camera, kEdsObjectEvent_DirItemCreated,
+		handleDirItemCreatedObjectEvent, (EdsVoid*) &theImageRef);
+		RETURN_WITH_ERROR(err,-1);
+
 		// Open session with camera
-		EdsError err = EDS_ERR_OK;
 		err = EdsOpenSession(camera);
 		if(err == EDS_ERR_OK)
 		{
 			isConnected=true;
 			lastError=err;
 			return 1;
-		}else if (err == EDS_ERR_INVALID_HANDLE)
-		{
-			lastError = getFirstCamera(&camera);
-			return lastError;
 		}
-		return -1;
+		RETURN_WITH_ERROR(err,-1);
 	}
 
 	int PixInsightCanonDSLRCameraDriver::DisconnectCamera()
